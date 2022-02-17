@@ -36,14 +36,16 @@ from muss.mining.nn_search import (
 )
 from muss.mining.filtering import SimplicityScorer
 
-ccnet_dir = Path(
-    input(
-        'Please download the CCNet corpus from https://github.com/facebookresearch/cc_net and enter the path to the downloaded data: '
-    )
-)
-language = input('What language do you want to process? (en/fr/es): ')
+# ccnet_dir = Path(
+#     input(
+#         'Please download the CCNet corpus from https://github.com/facebookresearch/cc_net and enter the path to the downloaded data: '
+#     )
+# )
+ccnet_dir = Path('/srv/scratch6/kew/cc_net/data/reproduce_split/2019-09')
+language = 'en' # input('What language do you want to process? (en/fr/es/de): ')
 cluster = 'local'
 dataset_dir = get_dataset_dir('uts') / language
+print('dataset dir:', dataset_dir)
 # For large jobs only
 slurm_partition = 'dev,scavenge'
 slurm_array_parallelism = 1024
@@ -52,16 +54,20 @@ slurm_array_parallelism = 1024
 with log_action('Splitting CCNet shards into smaller subshards'):
     # We need to split each shard even more for the LASER embeddings to fit in memory
     n_shards = {  # Number of shards to take for each languages for ~1B sentences
-        'en': 15,
-        'fr': 25,
+        # 'de': 31, # requires language model!! https://github.com/facebookresearch/muss/issues/20#issuecomment-1031474509
+        'en': 31, #15,
+        'fr': 23, #25,
         'es': 13,  # We would need about 20 shards for 1B sentences, but there are only 13
     }[language]
-    ccnet_filepaths = [ccnet_dir / f'{language}_head_{i:04d}.json.gz' for i in range(n_shards)]
+    # ccnet_filepaths = [ccnet_dir / f'{language}_head_{i:04d}.json.gz' for i in range(n_shards)]
+    ccnet_filepaths = [ccnet_dir / f'{i:04d}' / f'{language}_head.json.gz' for i in range(n_shards)]
+    print(ccnet_filepaths)
     raw_original_dir = dataset_dir / 'raw_original'
     raw_original_dir.mkdir(exist_ok=True, parents=True)
     output_dirs = [raw_original_dir / f'{language}_head_{i:04d}' for i in range(n_shards)]
+    print(output_dirs)
     n_docs_per_file = 50000
-    executor = get_executor(cluster=cluster, slurm_partition='dev', timeout_min=1 * 30, slurm_array_parallelism=16)
+    executor = get_executor(cluster=cluster, slurm_partition='dev', timeout_min=1 * 60, slurm_array_parallelism=16)
     jobs = []
     with executor.batch():
         for ccnet_filepath, output_dir in zip(ccnet_filepaths, output_dirs):
@@ -153,7 +159,7 @@ with log_action('Mining paraphrases'):
     executor = get_executor(
         cluster=cluster,
         slurm_partition=slurm_partition,
-        timeout_min=2 * 60,
+        timeout_min=4 * 60,
         slurm_array_parallelism=slurm_array_parallelism,
     )
     jobs = []
@@ -163,8 +169,18 @@ with log_action('Mining paraphrases'):
             if get_results_path(query_sentences_path, db_sentences_paths, topk, nprobe, nn_search_results_dir).exists():
                 continue
             # Should take about ~1h30 each
-            job = executor.submit(
-                compute_and_save_nn_batched,
+            # https://github.com/facebookresearch/muss/issues/32#issuecomment-1035031775
+            # job = executor.submit(
+            #     compute_and_save_nn_batched,
+            #     query_sentences_path,
+            #     db_sentences_paths,
+            #     topk,
+            #     nprobe,
+            #     indexes_dir,
+            #     nn_search_results_dir,
+            #     delete_intermediary=True,
+            # )
+            job = compute_and_save_nn_batched(
                 query_sentences_path,
                 db_sentences_paths,
                 topk,
@@ -173,9 +189,10 @@ with log_action('Mining paraphrases'):
                 nn_search_results_dir,
                 delete_intermediary=True,
             )
+            # import pdb;pdb.set_trace()
             jobs.append(job)
-    print([job.job_id for job in jobs])
-    [job.result() for job in tqdm(jobs)]
+    # print([job.job_id for job in jobs])
+    # [job.result() for job in tqdm(jobs)]
 
 # Filter candidate paraphrases
 with log_action('Filtering candidate paraphrases'):

@@ -15,6 +15,8 @@ from muss.resources.prepare import prepare_laser
 ENCODER_PATH = LASER_DIR / 'models/bilstm.93langs.2018-12-26.pt'
 BPE_CODES_PATH = LASER_DIR / 'models/93langs.fcodes'
 
+print('ENCODER PATH:', ENCODER_PATH)
+print('BPE CODES PATH:', BPE_CODES_PATH)
 
 @generalized_lru_cache(maxsize=1)
 @clear_cuda_cache

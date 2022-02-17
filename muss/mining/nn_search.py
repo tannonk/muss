@@ -113,7 +113,8 @@ def get_nearest_sentence_ids(query_index, db_index, topk, nprobe, batch_size=102
         db_index = faiss.index_cpu_to_all_gpus(db_index)
     all_distances = np.empty((query_index.ntotal, topk))
     all_sentence_ids = np.empty((query_index.ntotal, topk), dtype=int)
-    for batch_idx in range((query_index.ntotal // batch_size) + 1):
+    # for batch_idx in range((query_index.ntotal // batch_size) + 1):
+    for batch_idx in tqdm(range((query_index.ntotal // batch_size) + 1), total=query_index.ntotal // batch_size):
         start_idx = batch_idx * batch_size
         end_idx = min(start_idx + batch_size, query_index.ntotal)
         actual_batch_size = end_idx - start_idx
@@ -121,6 +122,8 @@ def get_nearest_sentence_ids(query_index, db_index, topk, nprobe, batch_size=102
         distances, sentence_ids = db_index.search(query_embeddings, topk)
         all_distances[start_idx:end_idx] = distances
         all_sentence_ids[start_idx:end_idx] = sentence_ids
+        # if batch_idx % 100 == 0:
+        #     print(f'Processed {batch_idx} batches...')
     # If distances are sorted in descending order, we make them ascending instead for the following code to work
     if np.all(np.diff(all_distances) <= 0):
         # This is taylored for transforming cosine similarity into a pseudo-distance: the maximum cosine similarity is 1 (vectors are equal).
@@ -146,10 +149,12 @@ def load_results(results_path):
 
 
 def compute_and_save_nn(query_sentences_path, db_sentences_paths, topk, nprobe, indexes_dir, nn_search_results_dir):
+    # import pdb;pdb.set_trace()
     results_path = get_results_path(query_sentences_path, db_sentences_paths, topk, nprobe, nn_search_results_dir)
     if results_path.exists():
         return results_path
     query_index = load_index(get_index_path(query_sentences_path, indexes_dir))
+    
     db_index = load_indexes([get_index_path(sentences_path, indexes_dir) for sentences_path in db_sentences_paths])
     distances, sentence_ids = get_nearest_sentence_ids(query_index, db_index, topk, nprobe)
     dump_results(distances, sentence_ids, results_path)
@@ -201,6 +206,7 @@ def compute_and_save_nn_batched(
     db_sentences_paths_batches = []
     batch = []
     n_batch_samples = 0
+    # import pdb;pdb.set_trace()
     for db_sentences_path in tqdm(db_sentences_paths, desc='Batching db files'):
         n_samples = cached_count_lines(db_sentences_path)
         if n_batch_samples + n_samples > n_samples_per_gpu:
@@ -213,6 +219,7 @@ def compute_and_save_nn_batched(
     intermediary_results_paths = []
     offset = 0
     offsets = []
+    # import pdb;pdb.set_trace()
     for db_sentences_paths_batch in tqdm(db_sentences_paths_batches, desc='Compute NN db batches'):
         intermediary_results_path = compute_and_save_nn(
             query_sentences_path, db_sentences_paths_batch, topk, nprobe, indexes_dir, nn_search_results_dir
@@ -445,6 +452,13 @@ def combine_simplifications_in_dataset(simplification_pairs, dataset):
             ('valid', 20000, 30000),
             ('train', 30000, len(indexes)),
         ]:
+        # assert len(simplification_pairs) > 3000, f'Not enough pairs: {len(simplification_pairs)}'
+        # indexes = np.random.permutation(len(simplification_pairs))
+        # for phase, start_index, end_index in [
+        #     ('test', 100, 200),
+        #     ('valid', 200, 300),
+        #     ('train', 300, len(indexes)),
+        # ]:
             with write_lines_in_parallel(
                 [get_data_filepath(dataset, phase, 'complex'), get_data_filepath(dataset, phase, 'simple')]
             ) as files:

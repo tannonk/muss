@@ -20,14 +20,16 @@ def train_kenlm_language_model(input_data_paths, output_model_dir):
     with log_action('Training tokenizer'):
         tokenizer = SentencePieceBPETokenizer()
         tokenizer.train([str(path) for path in input_data_paths], vocab_size=20000)
-        tokenizer.save(str(output_model_dir), 'spm_tokenizer')
+        # tokenizer.save(str(output_model_dir), 'spm_tokenizer')
+        tokenizer.save(str(output_model_dir / 'spm_tokenizer.json'))
     with log_action('Tokenizing'):
         tokenized_data_paths = get_temp_filepaths(len(input_data_paths))
         for tokenized_data_path, input_data_path in zip(tokenized_data_paths, input_data_paths):
             encodings = tokenizer.encode_batch(read_lines(input_data_path))
             write_lines([' '.join(encoding.tokens) for encoding in encodings], tokenized_data_path)
     with log_action('Training language model'):
-        kenlm_path = input('Please provide the path to the lmplz script (install at https://github.com/kpu/kenlm): ')
+        # kenlm_path = input('Please provide the path to the lmplz script (install at https://github.com/kpu/kenlm): ')
+        kenlm_path = '/home/user/kew/INSTALLS/kenlm/build/bin/lmplz'
         command = (
             f'cat {" ".join([str(path) for path in tokenized_data_paths])} | {kenlm_path} -o 3 > {output_model_path}'
         )

@@ -51,6 +51,7 @@ def get_fairseq_simplifier(exp_dir, **kwargs):
     @make_output_file_optional
     @memoize_simplifier
     def fairseq_simplifier(complex_filepath, output_pred_filepath):
+        # import pdb;pdb.set_trace()
         fairseq_generate(complex_filepath, output_pred_filepath, exp_dir, **kwargs)
 
     return fairseq_simplifier
@@ -58,11 +59,12 @@ def get_fairseq_simplifier(exp_dir, **kwargs):
 
 def get_preprocessed_simplifier(simplifier, preprocessors):
     composed_preprocessor = ComposedPreprocessor(preprocessors)
-
+    # import pdb;pdb.set_trace()
     @make_output_file_optional
     @memoize_simplifier
     @wraps(simplifier)
     def preprocessed_simplifier(complex_filepath, pred_filepath):
+        # import pdb;pdb.set_trace()        
         preprocessed_complex_filepath = get_temp_filepath()
         composed_preprocessor.encode_file(complex_filepath, preprocessed_complex_filepath)
         preprocessed_pred_filepath = simplifier(preprocessed_complex_filepath)

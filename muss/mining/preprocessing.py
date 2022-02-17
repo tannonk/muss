@@ -60,6 +60,7 @@ def has_low_lm_prob(text, language):
     model_dir, slope = {
         'en': (RESOURCES_DIR / 'models/language_models/kenlm_enwiki', -0.6),
         'fr': (RESOURCES_DIR / 'models/language_models/kenlm_frwiki', -0.6),
+        # 'de': (RESOURCES_DIR / 'models/language_models/kenlm_dewiki', -0.6),
         'es': (RESOURCES_DIR / 'models/language_models/kenlm_ccnet_es', -0.8),
         'it': (RESOURCES_DIR / 'models/language_models/kenlm_ccnet_it', -0.8),
     }[language]

@@ -125,13 +125,17 @@ class AbstractPreprocessor(ABC):
         return complex_sentence, simple_sentence
 
     def encode_file(self, input_filepath, output_filepath, encoder_filepath=None):
+        """
+        prefixes special tokens required by MUSS for simplification
+        """
         if encoder_filepath is None:
             # We will use an empty temporary file which will yield None for each line
             encoder_filepath = get_temp_filepath(create=True)
         with open(output_filepath, 'w', encoding='utf-8') as f:
             for input_line, encoder_line in yield_lines_in_parallel([input_filepath, encoder_filepath], strict=False):
                 f.write(self.encode_sentence(input_line, encoder_line) + '\n')
-
+                #print(self.encode_sentence(input_line, encoder_line))
+                
     def decode_file(self, input_filepath, output_filepath, encoder_filepath=None):
         if encoder_filepath is None:
             # We will use an empty temporary file which will yield None for each line

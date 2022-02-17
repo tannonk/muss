@@ -5,6 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 import argparse
+from pathlib import Path
 
 from muss.simplify import ALLOWED_MODEL_NAMES, simplify_sentences
 from muss.utils.helpers import read_lines
@@ -20,10 +21,17 @@ if __name__ == '__main__':
         choices=ALLOWED_MODEL_NAMES,
         help=f'Model name to generate from. Models selected with the highest validation SARI score.',
     )
+    parser.add_argument('--outfile', type=str, default=None, help='if provided, outputs are written one-per-line to provided file path')
     args = parser.parse_args()
     source_sentences = read_lines(args.filepath)
     pred_sentences = simplify_sentences(source_sentences, model_name=args.model_name)
-    for c, s in zip(source_sentences, pred_sentences):
-        print('-' * 80)
-        print(f'Original:   {c}')
-        print(f'Simplified: {s}')
+    if args.outfile is not None:
+        Path(args.outfile).parent.mkdir(exist_ok=True, parents=True)
+        with open(args.outfile, 'w', encoding='utf8') as outf:
+            for s in pred_sentences:
+                outf.write(f'{s}\n')
+    else: # original behaviour
+        for c, s in zip(source_sentences, pred_sentences):
+            print('-' * 80)
+            print(f'Original:   {c}')
+            print(f'Simplified: {s}')

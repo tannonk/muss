@@ -44,7 +44,8 @@ def get_language_from_model_name(model_name):
 def get_muss_preprocessors(model_name):
     language = get_language_from_model_name(model_name)
     preprocessors_kwargs = {
-        'LengthRatioPreprocessor': {'target_ratio': 0.9, 'use_short_name': False},
+        'LengthRatioPreprocessor': {'target_ratio': 0.75, 'use_short_name': False},
+        # 'LengthRatioPreprocessor': {'target_ratio': 0.9, 'use_short_name': False},
         'ReplaceOnlyLevenshteinPreprocessor': {'target_ratio': 0.65, 'use_short_name': False},
         'WordRankRatioPreprocessor': {'target_ratio': 0.75, 'language': language, 'use_short_name': False},
         'DependencyTreeDepthRatioPreprocessor': {'target_ratio': 0.4, 'language': language, 'use_short_name': False},
@@ -60,7 +61,11 @@ def get_muss_preprocessors(model_name):
 
 
 def simplify_sentences(source_sentences, model_name='muss_en_wikilarge_mined'):
-    # Best ACCESS parameter values for the en_bart_access_wikilarge_mined model, ideally we would need to use another set of parameters for other models.
+    # Best ACCESS parameter values for the
+    # en_bart_access_wikilarge_mined model, ideally we would
+    # need to use another set of parameters for other
+    # models.
+    # import pdb; pdb.set_trace()
     exp_dir = get_model_path(model_name)
     preprocessors = get_muss_preprocessors(model_name)
     generate_kwargs = {}

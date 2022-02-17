@@ -10,7 +10,8 @@ import shutil
 
 from muss.utils.resources import download_and_extract
 
-REPO_DIR = Path(__file__).resolve().parent.parent.parent
+# REPO_DIR = Path(__file__).resolve().parent.parent.parent
+REPO_DIR = Path('/srv/scratch6/kew/ats/muss')
 EXP_DIR = REPO_DIR / 'experiments'
 RESOURCES_DIR = REPO_DIR / 'resources'
 DATASETS_DIR = RESOURCES_DIR / 'datasets'
