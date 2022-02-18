@@ -8,33 +8,72 @@ from functools import lru_cache
 from pathlib import Path
 
 import kenlm
-from tokenizers import SentencePieceBPETokenizer
+from tokenizers import SentencePieceBPETokenizer, Tokenizer
 
 from muss.utils.helpers import get_temp_filepaths, read_lines, write_lines, log_action, run_command
 
+BUF_SIZE=1024*8
+
+def rm_existing(filepath):
+    filepath = Path(filepath)
+    if filepath.exists():
+        print(f'[!] overwriting existing file {filepath}')
+        filepath.unlink()
+        filepath.parent.mkdir(parents=True, exist_ok=True)
+        filepath.touch()
+    return filepath
+
+def add_lines(lines, filepath=None):
+    with filepath.open('a+', encoding='utf-8') as f:
+        for line in lines:
+            f.write(line + '\n')
+    return filepath
 
 def train_kenlm_language_model(input_data_paths, output_model_dir):
+    print(f'Processing data from {", ".join(input_data_paths)} ...')
     output_model_dir = Path(output_model_dir)
     output_model_dir.mkdir(exist_ok=True, parents=True)
     output_model_path = output_model_dir / 'kenlm_model.arpa'
-    with log_action('Training tokenizer'):
-        tokenizer = SentencePieceBPETokenizer()
-        tokenizer.train([str(path) for path in input_data_paths], vocab_size=20000)
-        # tokenizer.save(str(output_model_dir), 'spm_tokenizer')
-        tokenizer.save(str(output_model_dir / 'spm_tokenizer.json'))
+    tokenizer_path = output_model_dir / 'spm_tokenizer.json'
+    if tokenizer_path.exists():
+        print(f'[!] Loading existing tokenizer from {tokenizer_path} ...')
+        tokenizer = Tokenizer.from_file(str(tokenizer_path))
+    else:
+        with log_action('Training tokenizer'):
+            tokenizer = SentencePieceBPETokenizer()
+            tokenizer.train([str(path) for path in input_data_paths], vocab_size=20000)
+            #    # tokenizer.save(str(output_model_dir), 'spm_tokenizer')
+            tokenizer.save(str(tokenizer_path))
     with log_action('Tokenizing'):
-        tokenized_data_paths = get_temp_filepaths(len(input_data_paths))
+        # tokenized_data_paths = get_temp_filepaths(len(input_data_paths))
+        tokenized_data_paths = []
+        for filepath in input_data_paths:
+            filepath = Path(filepath)
+            tok_file_path = filepath.parent / f'{filepath.stem}.tok'
+            tokenized_data_paths.append(tok_file_path)
         for tokenized_data_path, input_data_path in zip(tokenized_data_paths, input_data_paths):
-            encodings = tokenizer.encode_batch(read_lines(input_data_path))
-            write_lines([' '.join(encoding.tokens) for encoding in encodings], tokenized_data_path)
+            # process chunks of lines at a time...
+            # rm_existing(tokenized_data_path)
+            if tokenized_data_path.exists():
+                print(f'{tokenized_data_path} already exists! Assuming data has already been tokenized and skipping...') 
+            else:
+                print(f'Writing tokenized lines to tmp file at {tokenized_data_path} ...')
+                with open(input_data_path, 'r', encoding='utf-8') as inf:
+                    tmp_lines = inf.readlines(BUF_SIZE)
+                    while tmp_lines:
+                        # process([line for line in tmp_lines])
+                        encodings = tokenizer.encode_batch([line.strip() for line in tmp_lines])
+                        add_lines([' '.join(encoding.tokens) for encoding in encodings], tokenized_data_path)
+                        tmp_lines = inf.readlines(BUF_SIZE)
+
     with log_action('Training language model'):
         # kenlm_path = input('Please provide the path to the lmplz script (install at https://github.com/kpu/kenlm): ')
         kenlm_path = '/home/user/kew/INSTALLS/kenlm/build/bin/lmplz'
         command = (
-            f'cat {" ".join([str(path) for path in tokenized_data_paths])} | {kenlm_path} -o 3 > {output_model_path}'
+            f'cat {" ".join([str(path) for path in tokenized_data_paths])} | {kenlm_path} -o 3 -S 80% > {output_model_path}'
         )
         run_command(command, mute=False)
-    [path.unlink() for path in tokenized_data_paths]
+    [path.unlink() for path in tokenized_data_paths] # remove tokenized files once lm is trained
     return output_model_dir
 
 
