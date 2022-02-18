@@ -42,7 +42,7 @@ from muss.mining.filtering import SimplicityScorer
 #     )
 # )
 ccnet_dir = Path('/srv/scratch6/kew/cc_net/data/reproduce_split/2019-09')
-language = 'en' # input('What language do you want to process? (en/fr/es/de): ')
+language = 'de' # input('What language do you want to process? (en/fr/es/de): ')
 cluster = 'local'
 dataset_dir = get_dataset_dir('uts') / language
 print('dataset dir:', dataset_dir)
@@ -54,7 +54,7 @@ slurm_array_parallelism = 1024
 with log_action('Splitting CCNet shards into smaller subshards'):
     # We need to split each shard even more for the LASER embeddings to fit in memory
     n_shards = {  # Number of shards to take for each languages for ~1B sentences
-        # 'de': 31, # requires language model!! https://github.com/facebookresearch/muss/issues/20#issuecomment-1031474509
+        'de': 31, # requires language model!! https://github.com/facebookresearch/muss/issues/20#issuecomment-1031474509
         'en': 31, #15,
         'fr': 23, #25,
         'es': 13,  # We would need about 20 shards for 1B sentences, but there are only 13
@@ -113,11 +113,14 @@ with log_action('Creating base index'):
         for sentence in yield_lines(sentences_path):
             train_sentences.append(sentence)
             if len(train_sentences) == n_train_sentences:
+                print('TRAIN SENTENCES LENGTH:', len(train_sentences))
                 break
         if len(train_sentences) == n_train_sentences:
+            print('TRAIN SENTENCES LENGTH:', len(train_sentences))
             break
 
     base_index_dir = dataset_dir / f'base_indexes/'
+    print('BASE INDEX DIR', base_index_dir)
     base_index_dir.mkdir(exist_ok=True, parents=True)
     # This can be very long
     base_index_path = create_base_index(
@@ -127,6 +130,7 @@ with log_action('Creating base index'):
 # Compute embeddings
 with log_action('Computing embeddings'):
     cache_dir = get_cache_dir(dataset_dir) / embeddings_type_name
+    print('CACHE DIR', cache_dir)
     indexes_dir = cache_dir / 'indexes' / f'base-index-{get_file_hash(base_index_path)}'
     indexes_dir.mkdir(exist_ok=True, parents=True)
     db_sentences_paths = get_sentences_paths(dataset_dir)
