@@ -7,6 +7,7 @@
 from collections import defaultdict
 import shutil
 import warnings
+import json
 
 import nevergrad as ng
 import numpy as np
@@ -146,6 +147,7 @@ def find_best_parametrization_nevergrad(
     optimizer = ng.optimizers.OnePlusOne(parametrization=parametrization, budget=parametrization_budget, num_workers=1)
     optimizer.register_callback("tell", ng.callbacks.ProgressBar())
     recommendation = optimizer.minimize(evaluate_parametrization, verbosity=0)
+    print(f'Recommendation:', recommendation)
     return recommendation.kwargs
 
 
@@ -194,15 +196,38 @@ def get_datasets_for_language(language):
     }[language]
 
 
+def save_kwargs(kwargs, kwargs_file):
+    with open(kwargs_file, 'w', encoding='utf8') as outf:
+        json.dumps(kwargs, outf, ensure_ascii=False, indent=4)
+    print(f'wrote optimized kwargs to {kwargs_file}')
+
 def finetune_and_predict_on_dataset(finetuning_dataset, exp_dir, **kwargs):
     kwargs['train_kwargs']['ngpus'] = 1
     prefix = 'finetune'
     if kwargs.get('fast_parametrization_search', False):
         prefix += '_fast'
-    pred_filepaths = [
-        exp_dir / f'{prefix}_{finetuning_dataset}_valid-test_{finetuning_dataset}_valid.pred',
-        exp_dir / f'{prefix}_{finetuning_dataset}_valid-test_{finetuning_dataset}_test.pred',
-    ]
+    out_dir = kwargs.get('out_dir', None)
+    if out_dir:
+        pred_filepaths = [
+            out_dir / f'{prefix}_{finetuning_dataset}_valid.pred',
+            out_dir / f'{prefix}_{finetuning_dataset}_test.pred',
+        ]
+    else:
+        pred_filepaths = [
+            exp_dir / f'{prefix}_{finetuning_dataset}_valid-test_{finetuning_dataset}_valid.pred',
+            exp_dir / f'{prefix}_{finetuning_dataset}_valid-test_{finetuning_dataset}_test.pred',
+        ]
+    
+    if out_dir:
+        kwargs_file = out_dir / f'{prefix}_{finetuning_dataset}_kwargs.json'
+    else:
+        kwargs_file = exp_dir / f'{prefix}_{finetuning_dataset}_kwargs.json'
+
+    print('The following files will be generated:')
+    for fp in pred_filepaths:
+        print('-', fp)
+    print('-', kwargs_file)
+
     if all([path.exists() for path in pred_filepaths]):
         return
     for phase, pred_filepath in zip(['valid', 'test'], pred_filepaths):
@@ -216,6 +241,10 @@ def finetune_and_predict_on_dataset(finetuning_dataset, exp_dir, **kwargs):
         if phase == 'valid':
             # Finetune preprocessors_kwargs only on valid
             kwargs['preprocessors_kwargs'] = find_best_parametrization(exp_dir, **kwargs)
+            print(kwargs['preprocessors_kwargs'])
+
+        save_kwargs(kwargs, kwargs_file)
+
         shutil.copyfile(fairseq_get_simplifier(exp_dir, **kwargs)(orig_sents_path), pred_filepath)
 
 

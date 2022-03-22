@@ -1,3 +1,21 @@
+## Fork of Multilingual Unsupervised Sentence Simplification
+
+Most of the changes in this fork are for experiments relating to ....
+These include:
+
+- `scripts/prepare_newsela_data_for_param_optim_and_eval.sh`
+- `scripts/param_search.py`
+  - prepares and runs new parameter search on Newsela sentence aligned data sets
+
+- `scripts/compute_label_scores_on_corpus.py`
+  - applies preprocessor scores to a set of complex-simple sentence pairs
+
+- `scripts/mine_sequences.py`
+  - changes made according to s3it infrastructure
+  - added support for new language: German
+
+---
+
 # Multilingual Unsupervised Sentence Simplification
 
 Code and pretrained models to reproduce experiments in "MUSS: Multilingual Unsupervised Sentence Simplification by Mining Paraphrases".

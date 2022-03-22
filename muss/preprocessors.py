@@ -134,7 +134,7 @@ class AbstractPreprocessor(ABC):
         with open(output_filepath, 'w', encoding='utf-8') as f:
             for input_line, encoder_line in yield_lines_in_parallel([input_filepath, encoder_filepath], strict=False):
                 f.write(self.encode_sentence(input_line, encoder_line) + '\n')
-                #print(self.encode_sentence(input_line, encoder_line))
+                # print(self.encode_sentence(input_line, encoder_line))
                 
     def decode_file(self, input_filepath, output_filepath, encoder_filepath=None):
         if encoder_filepath is None:

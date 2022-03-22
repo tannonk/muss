@@ -22,9 +22,16 @@ if __name__ == '__main__':
         help=f'Model name to generate from. Models selected with the highest validation SARI score.',
     )
     parser.add_argument('--outfile', type=str, default=None, help='if provided, outputs are written one-per-line to provided file path')
+    parser.add_argument('--len_ratio', type=float, default=0.75)
+    parser.add_argument('--lev_sim', type=float, default=0.65)
+    parser.add_argument('--word_rank', type=float, default=0.75)
+    parser.add_argument('--tree_depth', type=float, default=0.4)
     args = parser.parse_args()
+    # added processor arguments to commandline for experimentation
+    processor_args = argparse.Namespace(**{k: v for k, v in args._get_kwargs()
+                              if k in ['len_ratio', 'lev_sim', 'word_rank', 'tree_depth']})
     source_sentences = read_lines(args.filepath)
-    pred_sentences = simplify_sentences(source_sentences, model_name=args.model_name)
+    pred_sentences = simplify_sentences(source_sentences, processor_args, model_name=args.model_name)
     if args.outfile is not None:
         Path(args.outfile).parent.mkdir(exist_ok=True, parents=True)
         with open(args.outfile, 'w', encoding='utf8') as outf:
