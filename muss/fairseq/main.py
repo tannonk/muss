@@ -7,7 +7,6 @@
 from collections import defaultdict
 import shutil
 import warnings
-import json
 
 import nevergrad as ng
 import numpy as np
@@ -195,12 +194,6 @@ def get_datasets_for_language(language):
         # 'it': ['simpitiki']
     }[language]
 
-
-def save_kwargs(kwargs, kwargs_file):
-    with open(kwargs_file, 'w', encoding='utf8') as outf:
-        json.dumps(kwargs, outf, ensure_ascii=False, indent=4)
-    print(f'wrote optimized kwargs to {kwargs_file}')
-
 def finetune_and_predict_on_dataset(finetuning_dataset, exp_dir, **kwargs):
     kwargs['train_kwargs']['ngpus'] = 1
     prefix = 'finetune'
@@ -218,15 +211,9 @@ def finetune_and_predict_on_dataset(finetuning_dataset, exp_dir, **kwargs):
             exp_dir / f'{prefix}_{finetuning_dataset}_valid-test_{finetuning_dataset}_test.pred',
         ]
     
-    if out_dir:
-        kwargs_file = out_dir / f'{prefix}_{finetuning_dataset}_kwargs.json'
-    else:
-        kwargs_file = exp_dir / f'{prefix}_{finetuning_dataset}_kwargs.json'
-
     print('The following files will be generated:')
     for fp in pred_filepaths:
         print('-', fp)
-    print('-', kwargs_file)
 
     if all([path.exists() for path in pred_filepaths]):
         return
@@ -241,12 +228,40 @@ def finetune_and_predict_on_dataset(finetuning_dataset, exp_dir, **kwargs):
         if phase == 'valid':
             # Finetune preprocessors_kwargs only on valid
             kwargs['preprocessors_kwargs'] = find_best_parametrization(exp_dir, **kwargs)
-            print(kwargs['preprocessors_kwargs'])
-
-        save_kwargs(kwargs, kwargs_file)
+            
+            # save_kwargs(kwargs['preprocessors_kwargs'], kwargs_file)
+            print('*'*10)
+            print(str(kwargs['preprocessors_kwargs']))
+            print('*'*10)
 
         shutil.copyfile(fairseq_get_simplifier(exp_dir, **kwargs)(orig_sents_path), pred_filepath)
 
+def finetune_on_dataset(finetuning_dataset, exp_dir, **kwargs):
+    """
+    similar to above finetune_and_predict_on_dataset except we 
+    don't run the predictions/inference step due to multiprocessing `too many open files` error
+    """
+    kwargs['train_kwargs']['ngpus'] = 1
+    prefix = 'finetune'
+    if kwargs.get('fast_parametrization_search', False):
+        prefix += '_fast'
+    
+    phase = 'valid'
+    orig_sents_path = get_data_filepath(finetuning_dataset, phase, 'complex')
+    refs_sents_paths = list(get_dataset_dir(finetuning_dataset).glob(f'{phase}.simple*'))
+    kwargs['evaluate_kwargs'] = {
+        'test_set': 'custom',
+        'orig_sents_path': orig_sents_path,
+        'refs_sents_paths': refs_sents_paths,
+    }
+    # Finetune preprocessors_kwargs only on valid
+    kwargs['preprocessors_kwargs'] = find_best_parametrization(exp_dir, **kwargs)
+    
+    print('*'*10)
+    print(str(kwargs['preprocessors_kwargs']))
+    print('*'*10)
+
+    return kwargs['preprocessors_kwargs']
 
 def fairseq_train_and_evaluate_with_parametrization(dataset, **kwargs):
     # Training
