@@ -1,22 +1,29 @@
 ## Fork of Multilingual Unsupervised Sentence Simplification
 
-Most of the changes in this fork are for experiments relating to ....
-These include:
+Original repository can be found at https://github.com/facebookresearch/muss.
 
-- `scripts/prepare_newsela_data_for_param_optim_and_eval.sh`
-- `scripts/param_search.py`
+Most of the changes in this fork are for experiments relating to paraphrastic sentence simplification in EN and DE.
+
+We've extended API-access and some functionality for our purposes (see `custom_scripts`).
+- `prepare_newsela_data_for_param_optim_and_eval.sh`
+- `param_search.py`
   - prepares and runs new parameter search on Newsela sentence aligned data sets
-
-- `scripts/compute_label_scores_on_corpus.py`
+- `compute_label_scores_on_corpus.py`
   - applies preprocessor scores to a set of complex-simple sentence pairs
 
+Other changes were made to the mining pipeline and supporting scripts in order to run on our infrastructure.
 - `scripts/mine_sequences.py`
   - changes made according to s3it infrastructure
   - added support for new language: German
+- `muss/train_kenlm.py`
+  - training new LMs for German paraphrase mining
+- `muss/kenlm_helpers.py`
+  - essentially the same as the original `muss/kenlm.py` but renamed to avoid import issues with kenlm
 
 ---
 
-# Multilingual Unsupervised Sentence Simplification
+
+<!-- # Multilingual Unsupervised Sentence Simplification
 
 Code and pretrained models to reproduce experiments in "MUSS: Multilingual Unsupervised Sentence Simplification by Mining Paraphrases".
 
@@ -74,6 +81,7 @@ The MUSS license is CC-BY-NC. See the [LICENSE](LICENSE) file for more details.
 
 * **Louis Martin** ([louismartincs@gmail.com](mailto:louismartincs@gmail.com))
 
+ -->
 
 ## Citation
 
