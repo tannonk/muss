@@ -58,6 +58,7 @@ def fairseq_prepare_and_train(dataset, **kwargs):
     check_dataset(dataset)
     kwargs = check_and_resolve_args(kwargs)
     exp_dir = prepare_exp_dir()
+    # import pdb;pdb.set_trace()
     preprocessors_kwargs = kwargs.get('preprocessors_kwargs', {})
     preprocessors = get_preprocessors(preprocessors_kwargs)
     if len(preprocessors) > 0:
@@ -89,6 +90,7 @@ def get_predictions(source_path, exp_dir, **kwargs):
 
 
 def fairseq_evaluate(exp_dir, **kwargs):
+    # import pdb;pdb.set_trace()
     simplifier = fairseq_get_simplifier(exp_dir, **kwargs)
     evaluate_kwargs = kwargs.get('evaluate_kwargs', {'test_set': 'asset_valid'})
     return evaluate_simplifier(simplifier, **evaluate_kwargs)
@@ -102,9 +104,11 @@ def get_easse_report_from_exp_dir(exp_dir, **kwargs):
 def fairseq_evaluate_and_save(exp_dir, **kwargs):
     scores = fairseq_evaluate(exp_dir, **kwargs)
     print(f'scores={scores}')
-    report_path = exp_dir / 'easse_report.html'
-    shutil.move(get_easse_report_from_exp_dir(exp_dir, **kwargs), report_path)
-    print(f'report_path={report_path}')
+    # report generation throws error at https://github.com/feralvam/easse/blob/cb79f774fafccd7f96d8e0544ef975055c59f177/easse/report.py#L466
+    # regarding incorrect type of refs_sents (?)
+    # report_path = exp_dir / 'easse_report.html'
+    # shutil.move(get_easse_report_from_exp_dir(exp_dir, **kwargs), report_path)
+    # print(f'report_path={report_path}')
     predict_files = kwargs.get(
         'predict_files', [get_data_filepath('asset', 'valid', 'complex'), get_data_filepath('asset', 'test', 'complex')]
     )
@@ -166,6 +170,7 @@ def find_best_parametrization_fast(exp_dir, preprocessors_kwargs, **kwargs):
 
 
 def find_best_parametrization(exp_dir, preprocessors_kwargs, fast_parametrization_search=False, *args, **kwargs):
+    # import pdb;pdb.set_trace()
     if fast_parametrization_search:
         return find_best_parametrization_fast(exp_dir, preprocessors_kwargs, *args, **kwargs)
     else:
@@ -245,3 +250,16 @@ def checkpoint_fairseq_train_and_evaluate_with_parametrization(*args, **kwargs):
 
 
 fairseq_train_and_evaluate_with_parametrization.checkpoint = checkpoint_fairseq_train_and_evaluate_with_parametrization
+
+
+# same logic as above fairseq_train_and_evaluate_with_parametrization(), but skips training and loads pretrained model
+# def evaluate_with_parametrization(datasets, exp_dir, **kwargs):
+    # recommended_preprocessors_kwargs = print_running_time(find_best_parametrization)(exp_dir, **kwargs)
+    # print(f'recommended_preprocessors_kwargs={recommended_preprocessors_kwargs}')
+    # kwargs['preprocessor_kwargs'] = recommended_preprocessors_kwargs
+    # print(kwargs['preprocessor_kwargs'])
+    # Evaluation
+    # scores = print_running_time(fairseq_evaluate_and_save)(exp_dir, **kwargs)
+    # score = combine_metrics(scores['bleu'], scores['sari'], scores['fkgl'], kwargs.get('metrics_coefs', [0, 1, 0]))
+    # for finetuning_dataset in datasets:
+    #     finetune_and_predict_on_dataset(finetuning_dataset, exp_dir, **kwargs)

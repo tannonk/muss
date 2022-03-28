@@ -149,7 +149,6 @@ def load_results(results_path):
 
 
 def compute_and_save_nn(query_sentences_path, db_sentences_paths, topk, nprobe, indexes_dir, nn_search_results_dir):
-    # import pdb;pdb.set_trace()
     results_path = get_results_path(query_sentences_path, db_sentences_paths, topk, nprobe, nn_search_results_dir)
     if results_path.exists():
         return results_path
@@ -206,7 +205,6 @@ def compute_and_save_nn_batched(
     db_sentences_paths_batches = []
     batch = []
     n_batch_samples = 0
-    # import pdb;pdb.set_trace()
     for db_sentences_path in tqdm(db_sentences_paths, desc='Batching db files'):
         n_samples = cached_count_lines(db_sentences_path)
         if n_batch_samples + n_samples > n_samples_per_gpu:
@@ -219,7 +217,7 @@ def compute_and_save_nn_batched(
     intermediary_results_paths = []
     offset = 0
     offsets = []
-    # import pdb;pdb.set_trace()
+
     for db_sentences_paths_batch in tqdm(db_sentences_paths_batches, desc='Compute NN db batches'):
         intermediary_results_path = compute_and_save_nn(
             query_sentences_path, db_sentences_paths_batch, topk, nprobe, indexes_dir, nn_search_results_dir
@@ -445,23 +443,45 @@ def get_simplification_pairs_paths(query_sentences_paths, db_sentences_paths, to
 
 def combine_simplifications_in_dataset(simplification_pairs, dataset):
     with create_directory_or_skip(get_dataset_dir(dataset)):
-        assert len(simplification_pairs) > 30000, f'Not enough pairs: {len(simplification_pairs)}'
-        indexes = np.random.permutation(len(simplification_pairs))
-        for phase, start_index, end_index in [
-            ('test', 10000, 20000),
-            ('valid', 20000, 30000),
-            ('train', 30000, len(indexes)),
-        ]:
-        # assert len(simplification_pairs) > 3000, f'Not enough pairs: {len(simplification_pairs)}'
-        # indexes = np.random.permutation(len(simplification_pairs))
-        # for phase, start_index, end_index in [
-        #     ('test', 100, 200),
-        #     ('valid', 200, 300),
-        #     ('train', 300, len(indexes)),
-        # ]:
-            with write_lines_in_parallel(
-                [get_data_filepath(dataset, phase, 'complex'), get_data_filepath(dataset, phase, 'simple')]
-            ) as files:
-                for idx in tqdm(indexes[start_index:end_index]):
-                    files.write(simplification_pairs[idx])
+        # assert len(simplification_pairs) > 30000, f'Not enough pairs: {len(simplification_pairs)}'
+        if len(simplification_pairs) > 30000:
+            indexes = np.random.permutation(len(simplification_pairs))
+            for phase, start_index, end_index in [
+                ('test', 0, 10000),
+                ('valid', 10000, 20000),
+                ('train', 20000, len(indexes)),
+            ]:
+                with write_lines_in_parallel(
+                    [get_data_filepath(dataset, phase, 'complex'), get_data_filepath(dataset, phase, 'simple')]
+                ) as files:
+                    for idx in tqdm(indexes[start_index:end_index]):
+                        files.write(simplification_pairs[idx])
+        else:
+            print(f'[!] Less than 30,000 simplification pairs. Inferring test/valid/train split sizes..')
+            one_tenth = len(simplification_pairs) // 10
+            indexes = np.random.permutation(len(simplification_pairs))
+            for phase, start_index, end_index in [
+                ('test', 0, one_tenth),
+                ('valid', one_tenth, 2*one_tenth),
+                ('train', 2*one_tenth, len(indexes)),
+            ]:
+                 with write_lines_in_parallel(
+                    [get_data_filepath(dataset, phase, 'complex'), get_data_filepath(dataset, phase, 'simple')]
+                ) as files:
+                    print(phase, 'indices', indexes[start_index:end_index])
+                    for idx in tqdm(indexes[start_index:end_index]):
+                        files.write(simplification_pairs[idx])
     return get_dataset_dir(dataset)
+
+def wrap_up_paraphrases(query_sentences_paths, db_sentences_paths, topk, nprobe, filter_kwargs, pairs_dir, language):
+    """
+    moved into own function to be called with submitit and avoid memory issue on log-in node
+    """
+    simplification_pairs = get_simplification_pairs_paths(
+        query_sentences_paths, db_sentences_paths, topk, nprobe, filter_kwargs, pairs_dir
+    )
+    results_str = f'query-{get_files_hash(query_sentences_paths)}_db-{get_files_hash(db_sentences_paths)}_topk-{topk}_nprobe-{nprobe}'
+    filter_str = get_filter_string_representation(filter_kwargs)
+    dataset = f'uts_{language}_{results_str}_{filter_str}'
+    print(combine_simplifications_in_dataset(simplification_pairs, dataset))
+    return

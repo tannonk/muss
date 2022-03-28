@@ -8,6 +8,7 @@ import json
 import gzip
 from pathlib import Path
 from string import punctuation
+import pickle
 
 from tqdm import tqdm
 import numpy as np
@@ -15,7 +16,7 @@ import faiss
 
 from muss.preprocessing import normalize_punctuation
 from muss.text import yield_sentence_concatenations, normalize_unicode
-from muss.kenlm import get_kenlm_log_prob
+from muss.kenlm_helpers import get_kenlm_log_prob
 from muss.utils.helpers import batch_items, log_action, yield_lines
 from muss.resources.paths import RESOURCES_DIR
 from muss.mining.nn_search import cached_count_lines
@@ -60,7 +61,7 @@ def has_low_lm_prob(text, language):
     model_dir, slope = {
         'en': (RESOURCES_DIR / 'models/language_models/kenlm_enwiki', -0.6),
         'fr': (RESOURCES_DIR / 'models/language_models/kenlm_frwiki', -0.6),
-        # 'de': (RESOURCES_DIR / 'models/language_models/kenlm_dewiki', -0.6),
+        'de': (RESOURCES_DIR / 'models/language_models/kenlm_dewiki', -0.6), # trained on rattle Feb 18, 2022
         'es': (RESOURCES_DIR / 'models/language_models/kenlm_ccnet_es', -0.8),
         'it': (RESOURCES_DIR / 'models/language_models/kenlm_ccnet_it', -0.8),
     }[language]
@@ -119,8 +120,14 @@ def get_index_name():
 
 
 def create_base_index(sentences, index_name, get_embeddings, metric, output_dir):
+    if isinstance(sentences, Path) and sentences.exists: # if sentences is a pickled object, we expect a string which is loaded into mem
+        sentences = load_from_pickle(sentences)
+
+    assert isinstance(sentences, list)
+
     index_prefix = f'{index_name.replace(",", "_").lower()}_metric{metric}'
     index_path = output_dir / f'{index_prefix}.faiss_index'
+    print('INDEX PATH', index_path)
     if not index_path.exists():
         with log_action('Computing embeddings'):
             embeddings = get_embeddings(sentences)
@@ -129,3 +136,28 @@ def create_base_index(sentences, index_name, get_embeddings, metric, output_dir)
             index.train(embeddings)
         faiss.write_index(index, str(index_path))
     return index_path
+
+
+def pickle_train_sentences(dataset_dir, pickle_filepath):
+    n_train_sentences = 10 ** 7
+    train_sentences = []
+    for sentences_path in get_sentences_paths(dataset_dir):
+        for sentence in tqdm(yield_lines(sentences_path)):
+            train_sentences.append(sentence)
+            if len(train_sentences) == n_train_sentences:
+                print('TRAIN SENTENCES LENGTH:', len(train_sentences))
+                print(f'Hit train sentence limit in {sentences_path}')
+                break
+        if len(train_sentences) == n_train_sentences:
+            print('TRAIN SENTENCES LENGTH:', len(train_sentences))
+            break
+
+    with open(pickle_filepath, 'wb') as handle:
+        pickle.dump(train_sentences, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+    return pickle_filepath
+
+def load_from_pickle(pickle_filepath):
+    with open(pickle_filepath, 'rb') as handle:
+        obj = pickle.load(handle)
+    return obj
