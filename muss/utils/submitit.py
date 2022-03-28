@@ -58,12 +58,14 @@ def get_executor(
     slurm_partition='learnfair',
     catch=False,
     gpus_per_node=1,
+    slurm_gres="gpu:1",
     cpus_per_task=None,
     nodes=1,
     mem_gb=None,
     slurm_max_num_timeout=3,
     **kwargs,
 ):
+    # import pdb;pdb.set_trace()
     assert gpus_per_node <= 8
     executor = AutoExecutor(
         folder=SUBMITIT_JOB_DIR_FORMAT, cluster=cluster, slurm_max_num_timeout=slurm_max_num_timeout
@@ -71,13 +73,16 @@ def get_executor(
     if catch:
         executor = executor_with_catch(executor)
     if cpus_per_task is None:
-        cpus_per_task = gpus_per_node * 10
+        # cpus_per_task = gpus_per_node * 10
+        cpus_per_task = gpus_per_node * 8
     if mem_gb is None:
-        mem_gb = gpus_per_node * 64
+        # mem_gb = gpus_per_node * 64
+        mem_gb = gpus_per_node * 32
     executor.update_parameters(
         timeout_min=timeout_min,
         slurm_partition=slurm_partition,
-        gpus_per_node=gpus_per_node,
+        # gpus_per_node=gpus_per_node,
+        slurm_gres=slurm_gres,
         cpus_per_task=cpus_per_task,
         nodes=nodes,
         mem_gb=mem_gb,

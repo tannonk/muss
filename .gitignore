@@ -8,3 +8,5 @@ experiments
 ts-notebooks
 *.log
 *.out
+logs/
+*.summary
