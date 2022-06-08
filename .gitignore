@@ -10,3 +10,4 @@ ts-notebooks
 *.out
 logs/
 *.summary
+sergio/
