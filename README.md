@@ -9,7 +9,8 @@ We've extended API-access and some functionality for our purposes (see `custom_s
 - `param_search.py`
   - prepares and runs new parameter search on Newsela sentence aligned data sets
 - `compute_label_scores_on_corpus.py`
-  - applies preprocessor scores to a set of complex-simple sentence pairs
+  - applies preprocessor scores to a set of complex-simple sentence pairs (NOTE: this should be updated to the original preprocessor functions rather than self-implemented scorers)
+- can run inference on a file with hard-coded control token parameters, making evaluation of different control token values easier.
 
 Other changes were made to the mining pipeline and supporting scripts in order to run on our infrastructure.
 - `scripts/mine_sequences.py`
@@ -19,6 +20,7 @@ Other changes were made to the mining pipeline and supporting scripts in order t
   - training new LMs for German paraphrase mining
 - `muss/kenlm_helpers.py`
   - essentially the same as the original `muss/kenlm.py` but renamed to avoid import issues with kenlm
+
 
 ---
 
