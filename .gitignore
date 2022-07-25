@@ -11,3 +11,4 @@ ts-notebooks
 logs/
 *.summary
 sergio/
+resources/

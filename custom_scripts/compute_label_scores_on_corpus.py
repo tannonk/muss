@@ -76,8 +76,12 @@ def score_sentences(src_sents, tgt_sents):
         scores['levenshtein'].append(get_levenshtein_similarity(src, tgt))
         scores['dep_tree_depth'].append(get_dependency_tree_depth(tgt) / get_dependency_tree_depth(src))
 
-    qe = quality_estimation.corpus_quality_estimation(src_sents, tgt_sents)
-    scores.update(qe)
+    # customised sentence-level function in easse
+    # import pdb;pdb.set_trace()
+    # todo: fiz with custom easse install 
+    # qe = quality_estimation.sentence_quality_estimation(src_sents, tgt_sents)
+    # qe = quality_estimation.corpus_quality_estimation(src_sents, tgt_sents)
+    # scores.update(qe)
 
     return scores
 

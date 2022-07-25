@@ -133,8 +133,11 @@ class AbstractPreprocessor(ABC):
             encoder_filepath = get_temp_filepath(create=True)
         with open(output_filepath, 'w', encoding='utf-8') as f:
             for input_line, encoder_line in yield_lines_in_parallel([input_filepath, encoder_filepath], strict=False):
-                f.write(self.encode_sentence(input_line, encoder_line) + '\n')
-                # print(self.encode_sentence(input_line, encoder_line))
+                # hack to avoid encoding features if they are already hardcoded in input data for decoding
+                if hasattr(self, 'feature_name') and '<'+self.feature_name+'_' in input_line:
+                    f.write(input_line + '\n')
+                else:
+                    f.write(self.encode_sentence(input_line, encoder_line) + '\n')
                 
     def decode_file(self, input_filepath, output_filepath, encoder_filepath=None):
         if encoder_filepath is None:
