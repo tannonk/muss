@@ -18,22 +18,24 @@ from easse import quality_estimation
 from muss.feature_extraction import (get_lexical_complexity_score, get_levenshtein_similarity,
                                        get_dependency_tree_depth)
 
+from custom_utils import read_split_lines, compute_features, fetch_preprocessor_used_in_muss_model_training
+
 """
 Example call:
-    python scripts/compute_label_scores_on_corpus.py \
-        --infile /srv/scratch6/kew/ats/data/en/aligned/newsela_manual_v0_v4_dev.tsv /srv/scratch6/kew/ats/data/en/aligned/newsela_manual_v0_v4_train.tsv \
+    python compute_label_scores_on_corpus.py \
+        --infiles /srv/scratch6/kew/ats/data/en/aligned/newsela_manual_v0_v4_dev.tsv /srv/scratch6/kew/ats/data/en/aligned/newsela_manual_v0_v4_train.tsv \
         --df_path /srv/scratch6/kew/ats/data/en/data_stats
 
-    python scripts/compute_label_scores_on_corpus.py \
-        --infile /srv/scratch6/kew/ats/data/en/aligned/newsela_manual_v0_v3_dev.tsv /srv/scratch6/kew/ats/data/en/aligned/newsela_manual_v0_v3_train.tsv \
+    python compute_label_scores_on_corpus \
+        --infiles /srv/scratch6/kew/ats/data/en/aligned/newsela_manual_v0_v3_dev.tsv /srv/scratch6/kew/ats/data/en/aligned/newsela_manual_v0_v3_train.tsv \
         --df_path /srv/scratch6/kew/ats/data/en/data_stats
 
-    python scripts/compute_label_scores_on_corpus.py \
-        --infile /srv/scratch6/kew/ats/data/en/aligned/newsela_manual_v0_v2_dev.tsv /srv/scratch6/kew/ats/data/en/aligned/newsela_manual_v0_v2_train.tsv \
+    python compute_label_scores_on_corpus \
+        --infiles /srv/scratch6/kew/ats/data/en/aligned/newsela_manual_v0_v2_dev.tsv /srv/scratch6/kew/ats/data/en/aligned/newsela_manual_v0_v2_train.tsv \
         --df_path /srv/scratch6/kew/ats/data/en/data_stats
 
-    python scripts/compute_label_scores_on_corpus.py \
-        --infile /srv/scratch6/kew/ats/data/en/aligned/newsela_manual_v0_v1_dev.tsv /srv/scratch6/kew/ats/data/en/aligned/newsela_manual_v0_v1_train.tsv \
+    python compute_label_scores_on_corpus \
+        --infiles /srv/scratch6/kew/ats/data/en/aligned/newsela_manual_v0_v1_dev.tsv /srv/scratch6/kew/ats/data/en/aligned/newsela_manual_v0_v1_train.tsv \
         --df_path /srv/scratch6/kew/ats/data/en/data_stats
 
 """
@@ -45,17 +47,6 @@ def set_args():
     ap.add_argument('--df_path', type=Path, default=None, required=False)
     return ap.parse_args()
 
-def read_lines(files, sep='\t'):
-    src_lines, tgt_lines = [], []
-    for file in files:
-        print(f'reading lines from {file} ...')
-        with open(file, 'r', encoding='utf8') as inf:
-            for line in inf:
-                line = line.strip().split(sep)
-                src_lines.append(line[0])
-                tgt_lines.append(line[1]) # TODO check for multi-references
-    return src_lines, tgt_lines
-
 def score_sentences(src_sents, tgt_sents):
 
     scores = {
@@ -65,23 +56,34 @@ def score_sentences(src_sents, tgt_sents):
         'lex_complexity': [],
         'levenshtein': [],
         'dep_tree_depth': []
-
     }
 
+    #####################################################################
+    ## this is a self-implementation and may not be the best way to do it 
+    ## NOTE: results gained prior to 25/07/22 use this implementation
+    # for src, tgt in tqdm(zip(src_sents, tgt_sents), total=len(src_sents)):
+    #     scores['complex'].append(src)
+    #     scores['simple'].append(tgt)
+    #     scores['length_ratio'].append(len(tgt) / len(src))
+    #     scores['lex_complexity'].append(get_lexical_complexity_score(tgt) / get_lexical_complexity_score(src))
+    #     scores['levenshtein'].append(get_levenshtein_similarity(src, tgt))
+    #     scores['dep_tree_depth'].append(get_dependency_tree_depth(tgt) / get_dependency_tree_depth(src))
+    #####################################################################
+    
+    # better way to do it: use preprocessor functions directly from MUSS
+    preprocessors = fetch_preprocessor_used_in_muss_model_training()
     for src, tgt in tqdm(zip(src_sents, tgt_sents), total=len(src_sents)):
+        scored_instance = compute_features(src, tgt, preprocessors, as_score=True)
         scores['complex'].append(src)
         scores['simple'].append(tgt)
-        scores['length_ratio'].append(len(tgt) / len(src))
-        scores['lex_complexity'].append(get_lexical_complexity_score(tgt) / get_lexical_complexity_score(src))
-        scores['levenshtein'].append(get_levenshtein_similarity(src, tgt))
-        scores['dep_tree_depth'].append(get_dependency_tree_depth(tgt) / get_dependency_tree_depth(src))
+        scores['length_ratio'].append(scored_instance['LengthRatio_score'])
+        scores['lex_complexity'].append(scored_instance['WordRankRatio_score'])
+        scores['levenshtein'].append(scored_instance['ReplaceOnlyLevenshtein_score'])
+        scores['dep_tree_depth'].append(scored_instance['DependencyTreeDepthRatio_score'])
 
     # customised sentence-level function in easse
-    # import pdb;pdb.set_trace()
-    # todo: fiz with custom easse install 
-    # qe = quality_estimation.sentence_quality_estimation(src_sents, tgt_sents)
-    # qe = quality_estimation.corpus_quality_estimation(src_sents, tgt_sents)
-    # scores.update(qe)
+    qe = quality_estimation.sentence_quality_estimation(src_sents, tgt_sents)
+    scores.update(qe)
 
     return scores
 
@@ -102,7 +104,6 @@ def make_plots(df, title='', outfile=None):
     ax2 = sns.histplot(df, x='levenshtein', ax=axes[2], discrete=False, stat='density')
     ax3 = sns.histplot(df, x='dep_tree_depth', ax=axes[3], discrete=False, stat='density')
 
-    # import pdb;pdb.set_trace()
     for ax in axes:
         ax.set_xlim(left=0.0, right=2.0)
 
@@ -144,7 +145,13 @@ def main():
         test()
         sys.exit()
     
-    src_sents, tgt_sents = read_lines(args.infiles)
+    src_sents, tgt_sents = [], []
+    for file in args.infiles:
+        print(f'reading lines from {file} ...')
+        # file_src_sents, file_tgt_sents = read_lines(args.infiles)
+        srcs, tgts = read_split_lines(file)
+        src_sents.extend(srcs)
+        tgt_sents.extend(tgts)
 
     title = parse_title(args.infiles)
 

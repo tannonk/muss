@@ -21,14 +21,7 @@ import argparse
 from pathlib import Path
 
 from muss.simplify import simplify_sentences
-
-def read_split_lines(infile):
-    lines = []
-    with open(infile, 'r', encoding='utf8') as f:
-        for line in f:
-            line = line.strip().split('\t')
-            lines.append(line[0]) # src text
-    return lines
+from custom_utils import read_split_lines
 
 def parse_json_args(json_file):
     with open(json_file, 'r', encoding='utf8') as f:
@@ -66,7 +59,7 @@ if __name__ == '__main__':
                                 if k in ['len_ratio', 'lev_sim', 'word_rank', 'tree_depth']})
     
     # print('Processor args:', processor_args)
-    source_sentences = read_split_lines(args.filepath)
+    source_sentences, _ = read_split_lines(args.filepath)
     print(f'Loaded {len(source_sentences)} sentences from {args.filepath}')
     
     # run translation
